@@ -1,0 +1,32 @@
+<div class="min-h-[60vh]">
+  <!-- Logged out landing -->
+  <div *ngIf="authed === false" class="mx-auto max-w-3xl text-center py-16">
+    <h2 class="text-3xl font-semibold mb-3">Review and annotate PDFs</h2>
+    <p class="text-gray-600 mb-6">View, highlight, and comment on PDFs across your team.</p>
+    <div class="flex items-center justify-center gap-3">
+      <a class="px-4 py-2 rounded bg-blue-600 text-white" href="http://berjis.test">Get Started</a>
+      <a class="px-4 py-2 rounded border" routerLink="/pdf/demo">Try Demo</a>
+    </div>
+  </div>
+
+  <!-- Logged in recents -->
+  <div *ngIf="authed === true" class="max-w-4xl mx-auto py-8">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xl font-semibold">Recent PDFs</h3>
+      <a routerLink="/pdf/new" class="text-sm px-3 py-1.5 rounded bg-blue-600 text-white">Upload PDF</a>
+    </div>
+    <ul class="divide-y border rounded">
+      <li *ngFor="let p of recents" class="p-3 flex items-center justify-between">
+        <div>
+          <div class="font-medium">{{ p.title }}</div>
+          <div class="text-xs text-gray-500">Updated {{ p.updatedAt | date:'medium' }}</div>
+        </div>
+        <a [routerLink]="['/pdf', p.id]" class="text-blue-600 text-sm">Open</a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="authed === null" class="py-16 text-center text-gray-500">Checking your session.</div>
+</div>
+
