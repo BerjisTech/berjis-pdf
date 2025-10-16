@@ -14,8 +14,63 @@ export class PdfPageComponent implements OnInit {
   pdf: PdfDoc | null = null;
   annotations: { text: string }[] = [];
   pendingSave?: any;
+  contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
+    {
+      name: 'File',
+      menus: [
+        { icon: '', name: 'New', action: '' },
+        { icon: '', name: 'Open', action: '' },
+        { icon: '', name: 'Duplicate', action: '' },
+        { icon: '', name: 'Share', action: '' },
+        { icon: '', name: 'Email', action: '' },
+        { icon: '', name: 'Export', action: '' }
+      ]
+    },
+    {
+      name: 'Edit',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'View',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Insert',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Format',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Tools',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Extensions',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+    {
+      name: 'Help',
+      menus: [
+        { icon: '', name: '', action: '' }
+      ]
+    },
+  ]
 
-  constructor(private route: ActivatedRoute, private router: Router, public svc: PdfsService) {}
+  constructor(private route: ActivatedRoute, private router: Router, public svc: PdfsService) { }
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id') || 'new';
@@ -27,11 +82,11 @@ export class PdfPageComponent implements OnInit {
     this.annotations = Array.isArray(this.pdf?.annotations) ? this.pdf!.annotations as any : [];
   }
 
-  onTitleChange(){ this.queueSave(); }
-  addAnnotation(){ this.annotations.push({ text: '' }); this.queueSave(); }
-  onAnnChange(i:number, val:string){ this.annotations[i].text = val; this.queueSave(); }
+  onTitleChange() { this.queueSave(); }
+  addAnnotation() { this.annotations.push({ text: '' }); this.queueSave(); }
+  onAnnChange(i: number, val: string) { this.annotations[i].text = val; this.queueSave(); }
 
-  private queueSave(){ if (!this.pdf) return; if (this.pendingSave) clearTimeout(this.pendingSave); this.pendingSave = setTimeout(()=> this.save(), 400); }
-  private async ensureCreatedId(){ if (this.pdf && this.pdf.id==='new'){ const hasTitle = !!this.pdf.title && this.pdf.title.trim().length>0; const hasAnns = JSON.stringify(this.annotations).length>2; if (hasTitle || hasAnns){ const created = await this.svc.create({ title: this.pdf.title, annotations: this.annotations }); this.pdf = created; this.router.navigate(['/pdf', created.id], { replaceUrl: true }); } } }
-  private async save(){ if (!this.pdf) return; await this.ensureCreatedId(); if (!this.pdf) return; this.pdf.annotations = this.annotations; await this.svc.save(this.pdf); }
+  private queueSave() { if (!this.pdf) return; if (this.pendingSave) clearTimeout(this.pendingSave); this.pendingSave = setTimeout(() => this.save(), 400); }
+  private async ensureCreatedId() { if (this.pdf && this.pdf.id === 'new') { const hasTitle = !!this.pdf.title && this.pdf.title.trim().length > 0; const hasAnns = JSON.stringify(this.annotations).length > 2; if (hasTitle || hasAnns) { const created = await this.svc.create({ title: this.pdf.title, annotations: this.annotations }); this.pdf = created; this.router.navigate(['/pdf', created.id], { replaceUrl: true }); } } }
+  private async save() { if (!this.pdf) return; await this.ensureCreatedId(); if (!this.pdf) return; this.pdf.annotations = this.annotations; await this.svc.save(this.pdf); }
 }

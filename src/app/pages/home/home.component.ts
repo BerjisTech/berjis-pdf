@@ -14,6 +14,10 @@ export class HomePageComponent {
   authed: boolean | null = null;
   recents: PdfDoc[] = [];
   constructor(private api: ApiService, private pdfs: PdfsService) { this.init(); }
+  get syncMode() { return this.pdfs.syncMode; }
+  get isSaving() { return this.pdfs.isSaving; }
+  get lastSavedAt() { return this.pdfs.lastSavedAt; }
+  get lastError() { return this.pdfs.lastError; }
   async init() {
     try {
       const res = await this.api.ensureAuth();
