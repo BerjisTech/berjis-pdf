@@ -1,2 +1,24 @@
-<div class="border rounded p-4">PDF viewer placeholder (DIY viewer slot)</div>
+<div class="p-3 border-b flex items-center gap-3">
+  <a routerLink="/" class="text-blue-600">Back</a>
+  <input class="flex-grow border rounded px-2 py-1" placeholder="Untitled PDF" [(ngModel)]="pdf!.title" (ngModelChange)="onTitleChange()" />
+  <div class="text-xs text-gray-600" *ngIf="svc.isSaving">Saving…</div>
+  <div class="text-xs text-gray-600" *ngIf="!svc.isSaving && svc.lastSavedAt">Saved {{ svc.lastSavedAt | date:'shortTime' }}</div>
+</div>
 
+<div class="p-4 grid grid-cols-4 gap-4">
+  <div class="col-span-3">
+    <div class="border rounded p-4 bg-slate-50 min-h-[400px]">
+      <div class="text-gray-500 text-sm mb-2">PDF viewer placeholder</div>
+      <div class="text-xs text-gray-400">(Import/upload coming soon)</div>
+    </div>
+  </div>
+  <div class="col-span-1">
+    <div class="text-sm font-medium mb-2">Annotations</div>
+    <div class="space-y-2">
+      <div *ngFor="let a of annotations; let i = index" class="border rounded p-2 bg-white">
+        <textarea class="w-full h-24 border rounded p-1" [ngModel]="a.text" (ngModelChange)="onAnnChange(i, $event)"></textarea>
+      </div>
+      <button class="mt-2 text-sm px-2 py-1 rounded bg-blue-600 text-white" (click)="addAnnotation()">Add note</button>
+    </div>
+  </div>
+</div>

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../api.service';
+import { PdfsService, PdfDoc } from '../../pdfs.service';
 
 @Component({
   standalone: true,
@@ -11,19 +12,13 @@ import { ApiService } from '../../api.service';
 })
 export class HomePageComponent {
   authed: boolean | null = null;
-  recents: Array<{ id: string; title: string; updatedAt: string }> = [];
-  constructor(private api: ApiService) { this.init(); }
+  recents: PdfDoc[] = [];
+  constructor(private api: ApiService, private pdfs: PdfsService) { this.init(); }
   async init() {
     try {
       const res = await this.api.ensureAuth();
       this.authed = !!res?.data?.valid;
-      if (this.authed) {
-        this.recents = [
-          { id: 'contract', title: 'MSA - ACME.pdf', updatedAt: new Date().toISOString() },
-          { id: 'report', title: 'Quarterly Report.pdf', updatedAt: new Date(Date.now() - 8*3600e3).toISOString() }
-        ];
-      }
+      if (this.authed) { this.recents = await this.pdfs.list(['active']); }
     } catch { this.authed = false; }
   }
 }
-
