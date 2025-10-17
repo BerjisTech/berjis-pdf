@@ -47,20 +47,218 @@
 </div>
 
 <div #editorMainPane class="p-4 grid grid-cols-4 gap-4">
-  <div class="col-span-3">
-    <div class="border rounded p-4 bg-slate-50 min-h-[400px]" [style.transform]="zoom!==1 ? 'scale(' + zoom + ')' : ''" [style.transformOrigin]="'top left'">
-      <div class="text-gray-500 text-sm mb-2">PDF viewer placeholder</div>
-      <div class="text-xs text-gray-400">(Import/upload coming soon)</div>
+  <div class="col-span-3 space-y-3">
+    <div class="flex items-end gap-3 flex-wrap">
+      <div>
+        <label class="block text-xs text-gray-600">Page Size</label>
+        <select class="border rounded px-2 py-1" [(ngModel)]="pageSize" (ngModelChange)="setPageSize($event)">
+          <option value="A4">A4 (210 × 297mm)</option>
+          <option value="Letter">Letter (8.5 × 11in)</option>
+          <option value="Legal">Legal (8.5 × 14in)</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <div *ngIf="pageSize==='Custom'" class="flex items-end gap-2">
+        <div>
+          <label class="block text-xs text-gray-600">Width (pt)</label>
+          <input type="number" class="border rounded px-2 py-1 w-28" [(ngModel)]="customPageWidth" (ngModelChange)="onCustomPageSizeChange()" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600">Height (pt)</label>
+          <input type="number" class="border rounded px-2 py-1 w-28" [(ngModel)]="customPageHeight" (ngModelChange)="onCustomPageSizeChange()" />
+        </div>
+      </div>
+      <div class="flex-grow"></div>
+      <div class="flex items-center gap-2">
+        <button class="px-2 py-1 border rounded bg-blue-600 text-white" (click)="exportPdf()">Export PDF</button>
+      </div>
+    </div>
+
+    <div class="border rounded bg-[#e5e7eb] p-6 overflow-auto">
+      <div class="mx-auto shadow bg-white relative select-none"
+           [style.width.px]="editorDoc.pageWidth * displayScale"
+           [style.height.px]="editorDoc.pageHeight * displayScale"
+           [style.transform]="zoom!==1 ? 'scale(' + zoom + ')' : ''"
+           [style.transformOrigin]="'top left'"
+           (mousedown)="onCanvasMouseDown($event)"
+           (mousemove)="onCanvasMouseMove($event)"
+           (mouseup)="onCanvasMouseUp()">
+        <!-- On-canvas toolbar -->
+        <div class="absolute left-2 top-2 bg-white/90 backdrop-blur rounded shadow px-2 py-1 flex items-center gap-1 text-xs">
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addTextBox()">Text</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addLink()">Link</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addImage()">Image</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addSignature()">Sign</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addWhiteout()">Whiteout</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addAnnotationItem()">Annotate</button>
+          <div class="h-6 w-px bg-slate-300 mx-1"></div>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('rect')">Rect</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('ellipse')">Ellipse</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('line')">Line</button>
+          <div class="h-6 w-px bg-slate-300 mx-1"></div>
+          <span>Forms:</span>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formText')">Text</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formTextarea')">Multiline</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formSelect')">Drop-down</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formRadio')">Radio</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formCheckbox')">Checkbox</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formSignature')">Signature</button>
+          <button class="px-2 py-1 border rounded" [class.bg-blue-50]="formEditMode" (click)="toggleFormEdit()">Form Edit</button>
+          <button class="px-2 py-1 border rounded" (click)="autoTabOrder()">Tab order</button>
+        </div>
+        <div *ngFor="let it of editorDoc.items"
+             class="absolute border-dashed"
+             [attr.data-eid]="it.id"
+             [class.border-blue-500]="it.id===selectedId"
+             [class.border-transparent]="it.id!==selectedId"
+             [style.left.px]="it.x * displayScale"
+             [style.top.px]="it.y * displayScale"
+             [style.width.px]="it.w * displayScale"
+             [style.height.px]="it.h * displayScale"
+             [style.transform]="transformStyle(it)"
+             [style.transformOrigin]="'top left'"
+             (mousedown)="$event.stopPropagation(); onCanvasMouseDown($event)">
+          <div *ngIf="it.type==='text'" class="w-full h-full p-1 cursor-move"
+               [style.fontSize.px]="(it.fontSize||14) * displayScale"
+               [style.lineHeight]="'1'"
+               [style.fontFamily]="(it.fontFamily||'helvetica') + ', Arial, sans-serif'"
+               [style.fontWeight]="it.bold ? '700' : '400'"
+               [style.fontStyle]="it.italic ? 'italic' : 'normal'"
+               [style.textDecoration]="it.underline ? 'underline' : 'none'"
+               [style.color]="it.color||'#000'">
+            {{ it.text }}
+          </div>
+          <img *ngIf="it.type==='image' || it.type==='sign'" class="w-full h-full object-contain cursor-move" [src]="itemDataUrl(it)" />
+          <div *ngIf="it.type==='link'" class="w-full h-full p-1 cursor-move underline"
+               [style.fontSize.px]="itemFontSize(it) * displayScale"
+               [style.color]="itemColor(it, '#2563eb')">
+            {{ itemText(it) }}
+          </div>
+          <div *ngIf="it.type==='shape'" class="w-full h-full cursor-move"
+               [style.border]="shapeBorder(it)"
+               [style.background]="shapeFill(it)">
+            <div *ngIf="isLineShape(it)" class="absolute left-0 top-0 right-0 bottom-0" [style.borderTop]="lineBorderTop(it)"></div>
+          </div>
+          <div *ngIf="it.type==='whiteout'" class="w-full h-full bg-white cursor-move"></div>
+          <div *ngIf="it.type==='annotation'" class="w-full h-full bg-yellow-200 text-xs p-1 cursor-move">{{ itemText(it) }}</div>
+          <div *ngIf="it.type.startsWith('form')" class="w-full h-full cursor-move"
+               [class.outline]="formEditMode" [class.outline-blue-400]="formEditMode" [class.outline-1]="formEditMode"
+               [style.background]="formEditMode ? '#eef2ff' : 'transparent'">
+            <div class="text-[10px] text-gray-500" *ngIf="formEditMode">{{ fieldName(it) }} (tab {{ fieldTabIndex(it) }})</div>
+          </div>
+
+          <!-- Resize handles -->
+          <ng-container *ngIf="it.id===selectedId">
+            <div *ngFor="let h of ['nw','n','ne','e','se','s','sw','w']"
+                 class="absolute bg-white border border-blue-500 rounded w-2 h-2"
+                 [attr.data-rh]="h" [attr.data-eid]="it.id"
+                 [style.cursor]="h + '-resize'"
+                 [style.left.px]="handleLeft(it, h)"
+                 [style.top.px]="handleTop(it, h)"
+                 (mousedown)="$event.stopPropagation(); onCanvasMouseDown($event)"></div>
+            <!-- Rotate handle -->
+            <div class="absolute left-1/2 -translate-x-1/2 -top-4 w-3 h-3 bg-white border border-blue-500 rounded-full cursor-crosshair"
+                 data-rotate="1" [attr.data-eid]="it.id" (mousedown)="$event.stopPropagation(); onCanvasMouseDown($event)"></div>
+          </ng-container>
+        </div>
+
+        <!-- Contextual toolbar for selected item -->
+        <ng-container *ngIf="getSelected() as sel">
+          <div class="absolute bg-white/95 backdrop-blur rounded shadow px-2 py-1 text-xs flex items-center gap-2"
+               [style.left.px]="(sel.x * displayScale)"
+               [style.top.px]="Math.max(0, (sel.y * displayScale) - 32)">
+            <ng-container [ngSwitch]="sel.type">
+              <ng-container *ngSwitchCase="'text'">
+                <label>Size <input type="number" class="w-16 border rounded px-1 py-0.5" [ngModel]="getSelFontSize()" (ngModelChange)="updateSelectedFontSize($event)"/></label>
+                <label>Color <input type="color" class="w-6 h-6" [ngModel]="getSelColor()" (ngModelChange)="updateSelectedColor($event)"/></label>
+                <button class="px-1 py-0.5 border rounded" (click)="toggleStyle('bold')">B</button>
+                <button class="px-1 py-0.5 border rounded" (click)="toggleStyle('italic')">I</button>
+                <button class="px-1 py-0.5 border rounded" (click)="toggleStyle('underline')">U</button>
+                <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+              </ng-container>
+              <ng-container *ngSwitchCase="'link'">
+                <input class="border rounded px-1 py-0.5 w-40" placeholder="URL" [ngModel]="getSelUrl()" (ngModelChange)="setSelectedUrl($event)" />
+                <label>Size <input type="number" class="w-16 border rounded px-1 py-0.5" [ngModel]="getSelFontSize()" (ngModelChange)="updateSelectedFontSize($event)"/></label>
+                <label>Color <input type="color" class="w-6 h-6" [ngModel]="getSelColor()" (ngModelChange)="updateSelectedColor($event)"/></label>
+                <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+              </ng-container>
+              <ng-container *ngSwitchCase="'image'">
+                <label>W <input type="number" class="w-16 border rounded px-1 py-0.5" [ngModel]="sel.w" (ngModelChange)="setSelectedWidth($event)"/></label>
+                <button class="px-1 py-0.5 border rounded" (click)="rotateSelected(15)">Rotate +15°</button>
+                <button class="px-1 py-0.5 border rounded" (click)="rotateSelected(-15)">Rotate -15°</button>
+                <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+              </ng-container>
+              <ng-container *ngSwitchCase="'sign'">
+                <label>W <input type="number" class="w-16 border rounded px-1 py-0.5" [ngModel]="sel.w" (ngModelChange)="setSelectedWidth($event)"/></label>
+                <button class="px-1 py-0.5 border rounded" (click)="rotateSelected(15)">Rotate +15°</button>
+                <button class="px-1 py-0.5 border rounded" (click)="rotateSelected(-15)">Rotate -15°</button>
+                <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+              </ng-container>
+              <ng-container *ngSwitchCase="'shape'">
+                <label>Stroke <input type="color" class="w-6 h-6" [ngModel]="getSelStroke()" (ngModelChange)="setSelStroke($event)"/></label>
+                <label>Fill <input type="color" class="w-6 h-6" [ngModel]="getSelFill()" (ngModelChange)="setSelFill($event)"/></label>
+                <label>Width <input type="number" class="w-16 border rounded px-1 py-0.5" [ngModel]="getSelStrokeWidth()" (ngModelChange)="setSelStrokeWidth($event)"/></label>
+                <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+              </ng-container>
+              <ng-container *ngSwitchCase="'whiteout'">
+                <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+              </ng-container>
+              <ng-container *ngSwitchCase="'annotation'">
+                <input class="border rounded px-1 py-0.5 w-48" [ngModel]="getSelText()" (ngModelChange)="updateSelectedText($event)" />
+                <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+              </ng-container>
+              <ng-container *ngSwitchDefault>
+                <ng-container *ngIf="sel.type.startsWith('form')">
+                  <input class="border rounded px-1 py-0.5 w-32" placeholder="Name" [ngModel]="getSelName()" (ngModelChange)="setSelName($event)"/>
+                  <label>Tab <input type="number" class="w-14 border rounded px-1 py-0.5" [ngModel]="getSelTabIndex()" (ngModelChange)="setSelTabIndex($event)"/></label>
+                  <ng-container *ngIf="sel.type==='formSelect'">
+                    <input class="border rounded px-1 py-0.5 w-64" placeholder="Comma separated options" [ngModel]="getSelOptionsString()" (ngModelChange)="setSelOptionsString($event)"/>
+                  </ng-container>
+                  <button class="px-1 py-0.5 border rounded" (click)="deleteSelected()">Delete</button>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+          </div>
+        </ng-container>
+      </div>
     </div>
   </div>
-  <div class="col-span-1">
-    <div class="text-sm font-medium mb-2">Annotations</div>
-    <div class="space-y-2">
-      <div *ngFor="let a of annotations; let i = index" class="border rounded p-2 bg-white">
-        <textarea class="w-full h-24 border rounded p-1" [ngModel]="a.text"
-          (ngModelChange)="onAnnChange(i, $event)"></textarea>
+  <div class="col-span-1 space-y-4">
+    <div class="text-sm font-medium">Selected Item</div>
+    <div *ngIf="selectedId; else noSel" class="space-y-2">
+      <div class="text-xs text-gray-600">ID: {{ selectedId }}</div>
+      <ng-container *ngIf="getSelected() as sel">
+        <div *ngIf="sel.type==='text'">
+          <label class="block text-xs text-gray-600">Text</label>
+          <textarea class="w-full h-24 border rounded p-1" [ngModel]="sel.text" (ngModelChange)="updateSelectedText($event)"></textarea>
+          <label class="block text-xs text-gray-600 mt-2">Font Size</label>
+          <input type="number" class="w-24 border rounded px-2 py-1" [ngModel]="sel.fontSize" (ngModelChange)="updateSelectedFontSize($event)" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mt-2">Size (w × h, pt)</label>
+          <div class="flex items-center gap-2">
+            <input type="number" class="w-24 border rounded px-2 py-1" [ngModel]="sel.w" (ngModelChange)="updateSelectedSize($event, sel.h)" />
+            <input type="number" class="w-24 border rounded px-2 py-1" [ngModel]="sel.h" (ngModelChange)="updateSelectedSize(sel.w, $event)" />
+          </div>
+        </div>
+        <div class="flex items-center gap-2 pt-2">
+          <button class="px-2 py-1 border rounded" (click)="bringToFront()">Bring to front</button>
+          <button class="px-2 py-1 border rounded text-red-600" (click)="deleteSelected()">Delete</button>
+        </div>
+      </ng-container>
+    </div>
+    <ng-template #noSel>
+      <div class="text-xs text-gray-500">No item selected. Click an item on the page or add a new one.</div>
+    </ng-template>
+
+    <div class="pt-6">
+      <div class="text-sm font-medium mb-2">Annotations</div>
+      <div class="space-y-2">
+        <div *ngFor="let a of annotations; let i = index" class="border rounded p-2 bg-white">
+          <textarea class="w-full h-24 border rounded p-1" [ngModel]="a.text" (ngModelChange)="onAnnChange(i, $event)"></textarea>
+        </div>
+        <button class="mt-2 text-sm px-2 py-1 rounded bg-blue-600 text-white" (click)="addAnnotation()">Add note</button>
       </div>
-      <button class="mt-2 text-sm px-2 py-1 rounded bg-blue-600 text-white" (click)="addAnnotation()">Add note</button>
     </div>
   </div>
 </div>
@@ -94,6 +292,33 @@
     <div class="flex items-center justify-end gap-2 mt-3">
       <button class="px-3 py-1 border rounded" (click)="cancelRename()">Cancel</button>
       <button class="px-3 py-1 bg-blue-600 text-white rounded" (click)="confirmRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Upload PDF Modal -->
+<div *ngIf="uploadModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-[60000]">
+  <div class="bg-white rounded shadow w-[520px] p-4">
+    <div class="text-lg font-semibold mb-2">Upload PDF</div>
+    <input type="file" accept="application/pdf" (change)="onUploadFile($event.target.files)" />
+    <div class="text-xs text-gray-500 mt-2">Rendering requires pdf.js (pdfjsLib on window).</div>
+    <div class="flex items-center justify-end gap-2 mt-3">
+      <button class="px-3 py-1 border rounded" (click)="uploadModal=false">Close</button>
+    </div>
+  </div>
+  
+</div>
+
+<!-- Signature Modal -->
+<div *ngIf="signModal" class="fixed inset-0 bg-black/30 flex items-center justify-center z-[60000]">
+  <div class="bg-white rounded shadow w-[700px] p-4">
+    <div class="text-lg font-semibold mb-2">Draw Signature</div>
+    <canvas id="sig-canvas" width="640" height="200" class="border rounded bg-white cursor-crosshair"
+            (mousedown)="sigStart($event)" (mousemove)="sigMove($event)" (mouseup)="sigEnd()" (mouseleave)="sigEnd()"></canvas>
+    <div class="flex items-center justify-end gap-2 mt-3">
+      <button class="px-3 py-1 border rounded" (click)="sigClear()">Clear</button>
+      <button class="px-3 py-1 border rounded" (click)="signModal=false">Cancel</button>
+      <button class="px-3 py-1 bg-blue-600 text-white rounded" (click)="sigSave()">Use</button>
     </div>
   </div>
 </div>
