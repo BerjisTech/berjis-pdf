@@ -49,6 +49,9 @@ export class PdfPageComponent implements OnInit {
   // signature modal
   signModal = false; sigDrawing = false; sigCanvas?: HTMLCanvasElement; sigCtx?: CanvasRenderingContext2D|null; sigLast?: {x:number,y:number}|null = null;
   uploadModal = false;
+  // grid & snap
+  gridEnabled = true;
+  gridSize = 10; // points
   contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
     { name: 'File', menus: [
       { icon: '', name: 'New', action: 'new' },
@@ -248,7 +251,13 @@ export class PdfPageComponent implements OnInit {
     const pageEl = (target.closest && target.closest('[data-page="1"]')) as HTMLElement || (src.closest && src.closest('[data-page="1"]')) as HTMLElement || src;
     const rect = pageEl.getBoundingClientRect(); const factor = this.displayScale * this.zoom; const px=(ev.clientX-rect.left)/factor; const py=(ev.clientY-rect.top)/factor;
     const item = this.selectedId ? this.editorDoc.items.find(i=>i.id===this.selectedId) : null; if(!item) return;
-    if(this.isDragging){ item.x = Math.max(0, Math.min(this.editorDoc.pageWidth - item.w, px - this.dragOffset.x)); item.y = Math.max(0, Math.min(this.editorDoc.pageHeight - item.h, py - this.dragOffset.y)); return; }
+    if(this.isDragging){
+      let nx = px - this.dragOffset.x; let ny = py - this.dragOffset.y;
+      if(this.gridEnabled && !ev.altKey){ nx = this.snap(nx); ny = this.snap(ny); }
+      item.x = Math.max(0, Math.min(this.editorDoc.pageWidth - item.w, nx));
+      item.y = Math.max(0, Math.min(this.editorDoc.pageHeight - item.h, ny));
+      return;
+    }
     if(this.isResizing && this.resizeHandle){
       const start = { x: item.x, y: item.y, w: item.w, h: item.h } as any;
       const minW=10, minH=10;
@@ -279,6 +288,7 @@ export class PdfPageComponent implements OnInit {
           }
         }
       }
+      if(this.gridEnabled && !ev.altKey){ nx=this.snap(nx); ny=this.snap(ny); nw=this.snap(nw); nh=this.snap(nh); }
       item.x = Math.max(0, nx); item.y = Math.max(0, ny); item.w = Math.min(this.editorDoc.pageWidth - item.x, nw); item.h = Math.min(this.editorDoc.pageHeight - item.y, nh);
       return;
     }
@@ -314,7 +324,7 @@ export class PdfPageComponent implements OnInit {
   // Export as PDF (uses pdf-lib)
   async exportPdf(){
     try {
-      const { PDFDocument, rgb, StandardFonts, degrees } = await import('pdf-lib') as any;
+      const { PDFDocument, rgb, StandardFonts, degrees, PDFName, PDFArray, PDFNumber, PDFString } = await import('pdf-lib') as any;
       const pdfDoc = await PDFDocument.create();
       const page = pdfDoc.addPage([this.editorDoc.pageWidth, this.editorDoc.pageHeight]);
       const fonts: Record<string, any> = {};
@@ -344,7 +354,8 @@ export class PdfPageComponent implements OnInit {
         } else if (it.type==='link'){
           const size = (it as any).fontSize || 14; const y = this.editorDoc.pageHeight - it.y - size; const font = await getFont('helvetica');
           page.drawText((it as any).text || '', { x: it.x, y, size, font, color: col((it as any).color||'#2563eb') });
-          // Note: clickable links not added in this pass
+          // Add a link annotation over the text area
+          try { this.addLinkAnnotation(pdfDoc, page, it.x, this.editorDoc.pageHeight - it.y - ((it as any).h || size), it.w, ((it as any).h || size), (it as any).url || '', { PDFName, PDFArray, PDFNumber, PDFString }); } catch {}
         } else if (it.type==='shape'){
           const stroke = col((it as any).stroke||'#111827'); const fill = ((it as any).fill && (it as any).fill!=='transparent') ? col((it as any).fill) : undefined; const sw = (it as any).strokeWidth || 1;
           if((it as any).shape==='rect'){
@@ -442,6 +453,25 @@ export class PdfPageComponent implements OnInit {
   getSelected(){ return this.editorDoc.items.find(i=>i.id===this.selectedId) || null; }
   private uuid(): string { return 'i_' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
   private hexToRgb(hex: string){ try { const m = hex.replace('#',''); const bigint = parseInt(m,16); if(m.length===6) return { r:(bigint>>16)&255, g:(bigint>>8)&255, b:bigint&255 }; } catch {} return null; }
+  private addLinkAnnotation(pdfDoc: any, page: any, x: number, y: number, w: number, h: number, url: string, lib: any){
+    const { PDFName, PDFArray, PDFNumber, PDFString } = lib;
+    const ctx = pdfDoc.context;
+    const rect = PDFArray.withContext(ctx);
+    rect.push(PDFNumber.of(x), PDFNumber.of(y), PDFNumber.of(x + w), PDFNumber.of(y + h));
+    const border = PDFArray.withContext(ctx); border.push(PDFNumber.of(0), PDFNumber.of(0), PDFNumber.of(0));
+    const annot = ctx.obj({
+      Type: PDFName.of('Annot'),
+      Subtype: PDFName.of('Link'),
+      Rect: rect,
+      Border: border,
+      A: ctx.obj({ S: PDFName.of('URI'), URI: PDFString.of(url||'') })
+    });
+    const annotRef = ctx.register(annot);
+    const Annots = PDFName.of('Annots');
+    let annots = (page as any).node.get(Annots);
+    if (!annots) { annots = ctx.obj([]); (page as any).node.set(Annots, annots); }
+    annots.push(annotRef);
+  }
   shapeBorder(it: any): string { if(!it || it.shape==='line') return 'none'; const w = it.strokeWidth || 1; const col = it.stroke || '#111827'; return `${w}px solid ${col}`; }
   shapeFill(it: any): string { if(!it) return 'transparent'; return it.shape==='line' ? 'transparent' : (it.fill || 'transparent'); }
   lineBorderTop(it: any): string { const w = (it && it.strokeWidth) || 1; const col = (it && it.stroke) || '#111827'; return `${w}px solid ${col}`; }
@@ -493,7 +523,19 @@ export class PdfPageComponent implements OnInit {
     if (isTyping) return;
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && this.selectedId && !this.signModal && !this.openModal && !this.renameModal && !this.uploadModal){ this.deleteSelected(); ev.preventDefault(); }
     if (ev.key === 'Escape'){ this.selectedId = null; }
+    if (this.selectedId && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(ev.key)){
+      const it = this.getSelected(); if(!it) return;
+      const step = ev.shiftKey ? 10 : 1;
+      if(ev.key==='ArrowLeft') it.x = Math.max(0, it.x - step);
+      if(ev.key==='ArrowRight') it.x = Math.min(this.editorDoc.pageWidth - it.w, it.x + step);
+      if(ev.key==='ArrowUp') it.y = Math.max(0, it.y - step);
+      if(ev.key==='ArrowDown') it.y = Math.min(this.editorDoc.pageHeight - it.h, it.y + step);
+      this.queueEditorSave(); ev.preventDefault();
+    }
   }
+
+  // Snap helper
+  private snap(v: number){ const g = Math.max(1, Number(this.gridSize)||10); return Math.round(v / g) * g; }
 
   // Upload existing PDF (requires pdf.js)
   showUpload(){ this.uploadModal=true; }
