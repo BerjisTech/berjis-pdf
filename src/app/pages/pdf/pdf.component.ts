@@ -60,6 +60,23 @@ export class PdfPageComponent implements OnInit {
       { icon: '', name: 'Export PDF (forms)', action: 'exportPdfForms' },
       { icon: '', name: 'Print', action: 'print' }
     ]},
+    { name: 'Insert', menus: [
+      { icon: '', name: 'Text', action: 'insertText' },
+      { icon: '', name: 'Link', action: 'insertLink' },
+      { icon: '', name: 'Image', action: 'insertImage' },
+      { icon: '', name: 'Signature', action: 'insertSignature' },
+      { icon: '', name: 'Whiteout', action: 'insertWhiteout' },
+      { icon: '', name: 'Annotate', action: 'insertAnnotation' },
+      { icon: '', name: 'Shape: Rectangle', action: 'insertShapeRect' },
+      { icon: '', name: 'Shape: Ellipse', action: 'insertShapeEllipse' },
+      { icon: '', name: 'Shape: Line', action: 'insertShapeLine' },
+      { icon: '', name: 'Form: Text', action: 'insertFormText' },
+      { icon: '', name: 'Form: Text multiline', action: 'insertFormTextarea' },
+      { icon: '', name: 'Form: Drop-down list', action: 'insertFormSelect' },
+      { icon: '', name: 'Form: Radio button', action: 'insertFormRadio' },
+      { icon: '', name: 'Form: Checkbox', action: 'insertFormCheckbox' },
+      { icon: '', name: 'Form: Signature box', action: 'insertFormSignature' }
+    ]},
     { name: 'Edit', menus: [
       { icon: '', name: 'Undo', action: 'undo' },
       { icon: '', name: 'Redo', action: 'redo' }
@@ -92,6 +109,22 @@ export class PdfPageComponent implements OnInit {
       case 'exportPdf': this.exportPdf(); break;
       case 'exportPdfForms': this.exportPdfWithForms(); break;
       case 'upload': this.showUpload(); break;
+      // Insert shortcuts
+      case 'insertText': this.addTextBox(); break;
+      case 'insertLink': this.addLink(); break;
+      case 'insertImage': this.addImage(); break;
+      case 'insertSignature': this.openSign(); break;
+      case 'insertWhiteout': this.addWhiteout(); break;
+      case 'insertAnnotation': this.addAnnotationItem(); break;
+      case 'insertShapeRect': this.addShape('rect'); break;
+      case 'insertShapeEllipse': this.addShape('ellipse'); break;
+      case 'insertShapeLine': this.addShape('line'); break;
+      case 'insertFormText': this.addFormField('formText'); break;
+      case 'insertFormTextarea': this.addFormField('formTextarea'); break;
+      case 'insertFormSelect': this.addFormField('formSelect'); break;
+      case 'insertFormRadio': this.addFormField('formRadio'); break;
+      case 'insertFormCheckbox': this.addFormField('formCheckbox'); break;
+      case 'insertFormSignature': this.addFormField('formSignature'); break;
       case 'print': window.print(); break;
       case 'undo': document.execCommand('undo'); break;
       case 'redo': document.execCommand('redo'); break;
@@ -189,17 +222,20 @@ export class PdfPageComponent implements OnInit {
   // Editor: selection and dragging
   selectItem(id: string){ this.selectedId = id; }
   onCanvasMouseDown(ev: MouseEvent){
+    const src = ev.currentTarget as HTMLElement;
     const target = ev.target as HTMLElement;
     // rotate handle
-    if(target && target.getAttribute('data-rotate')==='1' && this.selectedId){ this.isRotating=true; ev.preventDefault(); return; }
+    const rotateAttr = (src.getAttribute('data-rotate') || target.getAttribute('data-rotate'));
+    if(rotateAttr==='1' && this.selectedId){ this.isRotating=true; ev.preventDefault(); return; }
     // resize handle
-    const rh = target?.getAttribute?.('data-rh') as any;
-    const id = target?.getAttribute?.('data-eid');
-    if (rh && id){ this.selectedId=id; this.isResizing=true; this.resizeHandle=rh; ev.preventDefault(); return; }
+    const rh = (src.getAttribute('data-rh') || target.getAttribute('data-rh')) as any;
+    const idAttr = (src.getAttribute('data-eid') || target.getAttribute('data-eid'));
+    if (rh && idAttr){ this.selectedId=idAttr; this.isResizing=true; this.resizeHandle=rh; ev.preventDefault(); return; }
+    const id = idAttr;
     if (!id) { this.selectedId = null; return; }
     this.selectedId = id; this.isDragging = true;
     const item = this.editorDoc.items.find(i => i.id===id); if(!item) return;
-    const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    const rect = (src).getBoundingClientRect();
     const px = (ev.clientX - rect.left) / this.displayScale; const py = (ev.clientY - rect.top) / this.displayScale;
     this.dragOffset.x = px - item.x; this.dragOffset.y = py - item.y;
   }

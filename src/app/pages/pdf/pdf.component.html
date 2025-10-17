@@ -88,23 +88,33 @@
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addTextBox()">Text</button>
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addLink()">Link</button>
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addImage()">Image</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addSignature()">Sign</button>
+          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="openSign()">Sign</button>
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addWhiteout()">Whiteout</button>
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addAnnotationItem()">Annotate</button>
           <div class="h-6 w-px bg-slate-300 mx-1"></div>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('rect')">Rect</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('ellipse')">Ellipse</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('line')">Line</button>
+          <span class="relative group">
+            <button class="px-2 py-1 hover:bg-slate-100 rounded">Shapes ▾</button>
+            <div class="hidden group-hover:block absolute left-0 top-[100%] bg-white rounded shadow p-1 z-50">
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('rect')">Rectangle</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('ellipse')">Ellipse</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addShape('line')">Line</button>
+            </div>
+          </span>
           <div class="h-6 w-px bg-slate-300 mx-1"></div>
-          <span>Forms:</span>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formText')">Text</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formTextarea')">Multiline</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formSelect')">Drop-down</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formRadio')">Radio</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formCheckbox')">Checkbox</button>
-          <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formSignature')">Signature</button>
-          <button class="px-2 py-1 border rounded" [class.bg-blue-50]="formEditMode" (click)="toggleFormEdit()">Form Edit</button>
-          <button class="px-2 py-1 border rounded" (click)="autoTabOrder()">Tab order</button>
+          <span class="relative group">
+            <button class="px-2 py-1 hover:bg-slate-100 rounded">Forms ▾</button>
+            <div class="hidden group-hover:block absolute left-0 top-[100%] bg-white rounded shadow p-1 z-50 min-w-[160px]">
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formText')">Text</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formTextarea')">Text multiline</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formSelect')">Drop-down list</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formRadio')">Radio button</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formCheckbox')">Checkbox</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="addFormField('formSignature')">Signature box</button>
+              <div class="border-t my-1"></div>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="toggleFormEdit()">Form Edit mode</button>
+              <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="autoTabOrder()">Change tab order</button>
+            </div>
+          </span>
         </div>
         <div *ngFor="let it of editorDoc.items"
              class="absolute border-dashed"
