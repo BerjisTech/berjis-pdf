@@ -348,9 +348,23 @@
   <div class="bg-white rounded shadow w-[520px] p-4">
     <div class="text-lg font-semibold mb-2">Upload PDF</div>
     <input type="file" accept="application/pdf" (change)="onUploadFile($event.target.files)" />
-    <div class="text-xs text-gray-500 mt-2">Rendering requires pdf.js (pdfjsLib on window).</div>
-    <div class="flex items-center justify-end gap-2 mt-3">
-      <button class="px-3 py-1 border rounded" (click)="uploadModal=false">Close</button>
+    <div class="text-xs text-gray-500 mt-2">Select pages to insert. Thumbnails auto-generate.</div>
+    <div class="mt-3 max-h-[55vh] overflow-auto grid grid-cols-4 gap-2" *ngIf="uploadPages.length>0">
+      <label *ngFor="let p of uploadPages" class="border rounded p-1 bg-white flex flex-col items-center text-xs">
+        <img [src]="p.dataUrl" class="w-full h-[120px] object-contain bg-slate-50" />
+        <div class="mt-1 flex items-center gap-1"><input type="checkbox" [(ngModel)]="p.selected"/> <span>Page {{p.index}}</span></div>
+      </label>
+    </div>
+    <div class="flex items-center justify-between mt-3">
+      <div class="flex items-center gap-2">
+        <button class="px-2 py-1 border rounded" (click)="toggleUploadSelectAll(true)">Select all</button>
+        <button class="px-2 py-1 border rounded" (click)="toggleUploadSelectAll(false)">Clear</button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-1 border rounded" (click)="uploadModal=false">Cancel</button>
+        <button class="px-3 py-1 border rounded" (click)="insertUpload('images')">Insert as images</button>
+        <button class="px-3 py-1 bg-blue-600 text-white rounded" (click)="insertUpload('pages')">Insert as pages</button>
+      </div>
     </div>
   </div>
   
