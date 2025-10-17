@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -479,6 +479,17 @@ export class PdfPageComponent implements OnInit {
   setSelTabIndex(v: any){ const it=this.getSelected(); if(!it) return; (it as any).tabIndex=Number(v)||0; this.queueEditorSave(); }
   getSelOptionsString(): string { const it=this.getSelected() as any; return Array.isArray(it?.options) ? it.options.join(', ') : ''; }
   setSelOptionsString(v: string){ const it=this.getSelected() as any; if(!it) return; it.options=String(v).split(',').map((s:string)=>s.trim()).filter(Boolean); this.queueEditorSave(); }
+
+  // Keyboard shortcuts
+  @HostListener('window:keydown', ['$event'])
+  handleKeydown(ev: KeyboardEvent){
+    // avoid when modals or inputs are focused
+    const active = document.activeElement as HTMLElement | null;
+    const isTyping = !!active && (active.tagName==='INPUT' || active.tagName==='TEXTAREA' || active.isContentEditable);
+    if (isTyping) return;
+    if ((ev.key === 'Delete' || ev.key === 'Backspace') && this.selectedId && !this.signModal && !this.openModal && !this.renameModal && !this.uploadModal){ this.deleteSelected(); ev.preventDefault(); }
+    if (ev.key === 'Escape'){ this.selectedId = null; }
+  }
 
   // Upload existing PDF (requires pdf.js)
   showUpload(){ this.uploadModal=true; }

@@ -235,9 +235,9 @@
   </div>
   <div class="col-span-1 space-y-4">
     <div class="text-sm font-medium">Selected Item</div>
-    <div *ngIf="selectedId; else noSel" class="space-y-2">
-      <div class="text-xs text-gray-600">ID: {{ selectedId }}</div>
-      <ng-container *ngIf="getSelected() as sel">
+    <ng-container *ngIf="getSelected() as sel; else noSel">
+      <div class="space-y-2">
+        <div class="text-xs text-gray-600">ID: {{ sel.id }}</div>
         <div *ngIf="sel.type==='text'">
           <label class="block text-xs text-gray-600">Text</label>
           <textarea class="w-full h-24 border rounded p-1" [ngModel]="sel.text" (ngModelChange)="updateSelectedText($event)"></textarea>
@@ -255,8 +255,8 @@
           <button class="px-2 py-1 border rounded" (click)="bringToFront()">Bring to front</button>
           <button class="px-2 py-1 border rounded text-red-600" (click)="deleteSelected()">Delete</button>
         </div>
-      </ng-container>
-    </div>
+      </div>
+    </ng-container>
     <ng-template #noSel>
       <div class="text-xs text-gray-500">No item selected. Click an item on the page or add a new one.</div>
     </ng-template>
