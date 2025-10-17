@@ -209,10 +209,20 @@ export class PdfPageComponent implements OnInit {
     el.addEventListener('change', async (e: any) => {
       const file = el.files && el.files[0]; if(!file) return; const reader = new FileReader();
       reader.onload = () => {
-        const id = this.uuid();
-        const w = 200; const h = 150; const ar = w / h;
-        this.editorDoc.items.push({ id, type: 'image', x: 60, y: 80, w, h, dataUrl: String(reader.result), ar });
-        this.selectedId = id; this.queueEditorSave(); el.value='';
+        const dataUrl = String(reader.result);
+        const probe = new Image();
+        probe.onload = () => {
+          const natW = probe.naturalWidth || 800; const natH = probe.naturalHeight || 600; const ar0 = natW / Math.max(1, natH);
+          // Fit into a reasonable box preserving aspect ratio
+          const maxW = Math.min(300, this.editorDoc.pageWidth * 0.6);
+          const maxH = Math.min(300, this.editorDoc.pageHeight * 0.6);
+          const scale = Math.min(maxW / natW, maxH / natH, 1);
+          const w = Math.round(natW * scale); const h = Math.round(natH * scale);
+          const id = this.uuid();
+          this.editorDoc.items.push({ id, type: 'image', x: 60, y: 80, w, h, dataUrl, ar: ar0 });
+          this.selectedId = id; this.queueEditorSave(); el.value='';
+        };
+        probe.src = dataUrl;
       };
       reader.readAsDataURL(file);
     });
@@ -520,11 +530,12 @@ export class PdfPageComponent implements OnInit {
     return val * this.displayScale;
   }
   handleTop(it: any, h: string): number {
-    if(!it) return 0; const hh = Number(it.h)||0;
+    if(!it) return 0; const hh = this.displayHeightPt(it);
     const map: Record<string, number> = { nw: -2, n: -2, ne: -2, e: hh/2 - 2, se: hh - 2, s: hh - 2, sw: hh - 2, w: hh/2 - 2 };
     const val = (map[h] ?? -2);
     return val * this.displayScale;
   }
+  private displayHeightPt(it: any): number { if(!it) return 0; if(it.type==='image'||it.type==='sign'){ const ar = (it.ar || (it.w && it.h ? it.w/it.h : 1)) || 1; return ar ? it.w / ar : (it.h||0); } return it.h||0; }
   // Selected getters for template bindings
   getSelFontSize(): number { const it=this.getSelected(); if(!it) return 14; return (it as any).fontSize || 14; }
   getSelColor(): string { const it=this.getSelected(); if(!it) return '#000000'; return (it as any).color || '#000000'; }
