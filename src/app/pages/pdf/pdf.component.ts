@@ -195,7 +195,8 @@ export class PdfPageComponent implements OnInit {
   // Editor: add items
   addTextBox(){
     const id = this.uuid();
-    this.editorDoc.items.push({ id, type: 'text', x: 40, y: 60, w: 200, h: 24, text: 'Text', fontSize: 14, color: '#000000', fontFamily: 'helvetica' });
+    const fontSize = 14; const h = fontSize + 4;
+    this.editorDoc.items.push({ id, type: 'text', x: 40, y: 60, w: 200, h, text: 'Text', fontSize, color: '#000000', fontFamily: 'helvetica' });
     this.selectedId = id; this.queueEditorSave();
   }
   addLink(){ const id=this.uuid(); this.editorDoc.items.push({ id, type: 'link', x: 40, y: 100, w: 220, h: 20, text: 'Link text', url: 'https://', color:'#2563eb', fontSize: 14 }); this.selectedId=id; this.queueEditorSave(); }
@@ -317,7 +318,7 @@ export class PdfPageComponent implements OnInit {
 
   // Editor: property editing
   updateSelectedText(val: string){ const it=this.getSelected(); if(it&&(it.type==='text'||it.type==='link'||it.type==='annotation')){ (it as any).text = val; this.queueEditorSave(); } }
-  updateSelectedFontSize(sz: number){ const it=this.getSelected(); if(it&&(it.type==='text'||it.type==='link')){ (it as any).fontSize = Math.max(6, Math.min(96, sz||14)); this.queueEditorSave(); } }
+  updateSelectedFontSize(sz: number){ const it=this.getSelected(); if(it&&(it.type==='text'||it.type==='link')){ const fs = Math.max(6, Math.min(96, sz||14)); (it as any).fontSize = fs; (it as any).h = fs + 4; this.queueEditorSave(); } }
   updateSelectedColor(color: string){ const it=this.getSelected(); if(it&&(it.type==='text'||it.type==='link')){ (it as any).color = color; this.queueEditorSave(); } }
   toggleStyle(style: 'bold'|'italic'|'underline'){ const it=this.getSelected(); if(it&&it.type==='text'){ (it as any)[style] = !(it as any)[style]; this.queueEditorSave(); } }
   rotateSelected(delta: number){ const it=this.getSelected(); if(!it) return; (it as any).rot = (((it as any).rot||0)+delta)%360; this.queueEditorSave(); }
@@ -517,7 +518,12 @@ export class PdfPageComponent implements OnInit {
   itemColor(it: any, fallback: string = '#2563eb'): string { return (it && it.color) ? it.color : fallback; }
   itemText(it: any): string { return (it && typeof it.text==='string') ? it.text : ''; }
   widthPx(it: any): number { return Math.round((it?.w||0) * this.displayScale); }
-  heightPx(it: any): number { if(!it) return 0; if((it.type==='image'||it.type==='sign') && (it.ar|| (it.w && it.h))) { const ar = it.ar || (it.w/it.h)||1; const h = it.w / ar; return Math.round(h * this.displayScale); } return Math.round((it.h||0) * this.displayScale); }
+  heightPx(it: any): number {
+    if(!it) return 0;
+    if(it.type==='text' || it.type==='link'){ const fs = (it.fontSize||14); return Math.round((fs + 4) * this.displayScale); }
+    if((it.type==='image'||it.type==='sign')){ const ar = (it.ar || (it.w && it.h ? it.w/it.h : 1)) || 1; const h = ar ? (it.w / ar) : (it.h||0); return Math.round(h * this.displayScale); }
+    return Math.round((it.h||0) * this.displayScale);
+  }
   isImg(it: any): boolean { return !!it && (it.type==='image' || it.type==='sign'); }
   aspectRatioVal(it: any): string { const ar = (it?.ar) ?? ((it?.w && it?.h) ? (it.w/it.h) : 1); return String(ar || 1); }
   isLineShape(it: any): boolean { return !!it && it.shape==='line'; }

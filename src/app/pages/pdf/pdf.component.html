@@ -164,8 +164,7 @@
              [style.left.px]="it.x * displayScale"
              [style.top.px]="it.y * displayScale"
              [style.width.px]="widthPx(it)"
-             [style.height.px]="isImg(it) ? null : heightPx(it)"
-             [style.aspectRatio]="isImg(it) ? aspectRatioVal(it) : null"
+             [style.height.px]="heightPx(it)"
              [style.transform]="transformStyle(it)"
              [style.transformOrigin]="'top left'"
              (mousedown)="$event.stopPropagation(); onCanvasMouseDown($event)">
