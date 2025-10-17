@@ -237,12 +237,16 @@ export class PdfPageComponent implements OnInit {
     if (!id) { this.selectedId = null; return; }
     this.selectedId = id; this.isDragging = true;
     const item = this.editorDoc.items.find(i => i.id===id); if(!item) return;
-    const rect = (src).getBoundingClientRect();
-    const px = (ev.clientX - rect.left) / this.displayScale; const py = (ev.clientY - rect.top) / this.displayScale;
+    const pageEl = (target.closest && target.closest('[data-page="1"]')) as HTMLElement || (src.closest && src.closest('[data-page="1"]')) as HTMLElement || src;
+    const rect = pageEl.getBoundingClientRect();
+    const factor = this.displayScale * this.zoom;
+    const px = (ev.clientX - rect.left) / factor; const py = (ev.clientY - rect.top) / factor;
     this.dragOffset.x = px - item.x; this.dragOffset.y = py - item.y;
   }
   onCanvasMouseMove(ev: MouseEvent){
-    const rect=(ev.currentTarget as HTMLElement).getBoundingClientRect(); const px=(ev.clientX-rect.left)/this.displayScale; const py=(ev.clientY-rect.top)/this.displayScale;
+    const src = ev.currentTarget as HTMLElement; const target = ev.target as HTMLElement;
+    const pageEl = (target.closest && target.closest('[data-page="1"]')) as HTMLElement || (src.closest && src.closest('[data-page="1"]')) as HTMLElement || src;
+    const rect = pageEl.getBoundingClientRect(); const factor = this.displayScale * this.zoom; const px=(ev.clientX-rect.left)/factor; const py=(ev.clientY-rect.top)/factor;
     const item = this.selectedId ? this.editorDoc.items.find(i=>i.id===this.selectedId) : null; if(!item) return;
     if(this.isDragging){ item.x = Math.max(0, Math.min(this.editorDoc.pageWidth - item.w, px - this.dragOffset.x)); item.y = Math.max(0, Math.min(this.editorDoc.pageHeight - item.h, py - this.dragOffset.y)); return; }
     if(this.isResizing && this.resizeHandle){
