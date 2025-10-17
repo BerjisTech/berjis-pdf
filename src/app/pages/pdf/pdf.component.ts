@@ -31,6 +31,7 @@ export class PdfPageComponent implements OnInit {
       | { id: string; type: 'whiteout'; x: number; y: number; w: number; h: number }
       | { id: string; type: 'annotation'; x: number; y: number; w: number; h: number; text: string }
       | { id: string; type: 'formText'|'formTextarea'|'formSelect'|'formRadio'|'formCheckbox'|'formSignature'; x: number; y: number; w: number; h: number; name?: string; placeholder?: string; options?: string[]; tabIndex?: number })[];
+    pages?: { id: string; items: any[] }[];
   } = { pageWidth: 595.28, pageHeight: 841.89, items: [] }; // default A4 in pt
   pageSize: 'A4' | 'Letter' | 'Legal' | 'Custom' = 'A4';
   customPageWidth = 595.28;
@@ -49,6 +50,9 @@ export class PdfPageComponent implements OnInit {
   // signature modal
   signModal = false; sigDrawing = false; sigCanvas?: HTMLCanvasElement; sigCtx?: CanvasRenderingContext2D|null; sigLast?: {x:number,y:number}|null = null;
   uploadModal = false;
+  // multi-page state
+  currentPage = 0;
+  uploadPages: { index: number; dataUrl: string; width: number; height: number; selected: boolean }[] = [];
   // grid & snap
   gridEnabled = true;
   gridSize = 10; // points
@@ -165,6 +169,7 @@ export class PdfPageComponent implements OnInit {
     }
     this.annotations = Array.isArray(this.pdf?.annotations) ? this.pdf!.annotations as any : [];
     this.loadEditorDoc();
+    this.ensurePages();
     setTimeout(() => this.ensureFileInput(), 0);
   }
 
@@ -320,6 +325,22 @@ export class PdfPageComponent implements OnInit {
   }
   queueEditorSave(){ if(this.editorSaveTimer) clearTimeout(this.editorSaveTimer); this.editorSaveTimer = setTimeout(()=> this.saveEditorDoc(), 300); }
   private inferPageSizeFromDims(){ const w=this.editorDoc.pageWidth, h=this.editorDoc.pageHeight; const approx = (a:number,b:number)=> Math.abs(a-b) < 2; if(approx(w,595.28)&&approx(h,841.89)) this.pageSize='A4'; else if(approx(w,612)&&approx(h,792)) this.pageSize='Letter'; else if(approx(w,612)&&approx(h,1008)) this.pageSize='Legal'; else { this.pageSize='Custom'; this.customPageWidth=w; this.customPageHeight=h; } }
+
+  // Pages management
+  private ensurePages(){
+    if(!Array.isArray(this.editorDoc.pages) || this.editorDoc.pages!.length===0){
+      this.editorDoc.pages = [{ id: this.uuid(), items: this.editorDoc.items }];
+      this.currentPage = 0;
+    } else {
+      // point items to current page's items for backward bindings
+      this.currentPage = Math.min(this.currentPage, this.editorDoc.pages!.length-1);
+      this.editorDoc.items = this.editorDoc.pages![this.currentPage].items;
+    }
+  }
+  selectPage(i: number){ if(!this.editorDoc.pages) return; this.currentPage = Math.max(0, Math.min(i, this.editorDoc.pages.length-1)); this.editorDoc.items = this.editorDoc.pages[this.currentPage].items; this.selectedId=null; this.queueEditorSave(); }
+  addPage(){ if(!this.editorDoc.pages) this.editorDoc.pages=[]; const newItems: any[] = []; this.editorDoc.pages.push({ id: this.uuid(), items: newItems }); this.selectPage(this.editorDoc.pages.length-1); }
+  deletePage(i: number){ if(!this.editorDoc.pages || this.editorDoc.pages.length<=1) return; this.editorDoc.pages.splice(i,1); this.selectPage(Math.max(0, Math.min(this.currentPage, this.editorDoc.pages.length-1))); }
+  movePage(i: number, dir: -1|1){ if(!this.editorDoc.pages) return; const j=i+dir; if(j<0||j>=this.editorDoc.pages.length) return; const [p]=this.editorDoc.pages.splice(i,1); this.editorDoc.pages.splice(j,0,p); this.selectPage(j); }
 
   // Export as PDF (uses pdf-lib)
   async exportPdf(){
@@ -537,30 +558,68 @@ export class PdfPageComponent implements OnInit {
   // Snap helper
   private snap(v: number){ const g = Math.max(1, Number(this.gridSize)||10); return Math.round(v / g) * g; }
 
+  // Thumbnails: render to canvas on hover
+  renderPageThumb(i: number, el: any){ try {
+      const pg = this.editorDoc.pages?.[i]; if(!pg || !el || typeof el.getContext!=='function') return;
+      const ctx = el.getContext('2d'); if(!ctx) return; const W=Number(el.width)||120, H=Number(el.height)||160; ctx.clearRect(0,0,W,H); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+      const sx = W / this.editorDoc.pageWidth; const sy = H / this.editorDoc.pageHeight; const s = Math.min(sx, sy);
+      for(const it of pg.items){
+        if(it.type==='text'){ ctx.fillStyle = it.color||'#111'; ctx.font = `${Math.max(8, Math.floor((it.fontSize||14)*s))}px Arial`; ctx.fillText(it.text||'', it.x*s, (it.y + (it.fontSize||14))*s); }
+        else if((it.type==='image'||it.type==='sign') && (it as any).dataUrl){ const img = new Image(); const x=it.x*s, y=it.y*s, w=it.w*s, h=it.h*s; img.onload = ()=> { ctx.drawImage(img, x, y, w, h); }; img.src = (it as any).dataUrl; }
+        else if(it.type==='shape'){ ctx.strokeStyle=(it as any).stroke||'#111'; ctx.lineWidth=(it as any).strokeWidth||1; if((it as any).shape==='rect'){ if((it as any).fill && (it as any).fill!=='transparent'){ ctx.fillStyle=(it as any).fill; ctx.fillRect(it.x*s, it.y*s, it.w*s, it.h*s); } ctx.strokeRect(it.x*s, it.y*s, it.w*s, it.h*s); }
+          else if((it as any).shape==='ellipse'){ ctx.beginPath(); ctx.ellipse((it.x+it.w/2)*s,(it.y+it.h/2)*s,(it.w/2)*s,(it.h/2)*s,0,0,Math.PI*2); if((it as any).fill && (it as any).fill!=='transparent'){ ctx.fillStyle=(it as any).fill; ctx.fill(); } ctx.stroke(); }
+          else if((it as any).shape==='line'){ ctx.beginPath(); ctx.moveTo(it.x*s, it.y*s); ctx.lineTo((it.x+it.w)*s, (it.y+it.h)*s); ctx.stroke(); } }
+        else if(it.type==='whiteout'){ ctx.fillStyle='#ffffff'; ctx.fillRect(it.x*s, it.y*s, it.w*s, it.h*s); }
+        else if(it.type==='annotation'){ ctx.fillStyle='#fde047'; ctx.fillRect(it.x*s, it.y*s, it.w*s, it.h*s); }
+        else if(it.type.startsWith('form')){ ctx.strokeStyle='#60a5fa'; ctx.strokeRect(it.x*s, it.y*s, it.w*s, it.h*s); }
+      }
+      ctx.strokeStyle='#e5e7eb'; ctx.strokeRect(0,0,W,H);
+    } catch {}
+  }
+
   // Upload existing PDF (requires pdf.js)
-  showUpload(){ this.uploadModal=true; }
+  showUpload(){ this.uploadModal=true; this.uploadPages=[]; }
   async onUploadFile(files: FileList|null){
     if(!files || files.length===0){ this.uploadModal=false; return; }
     const file = files[0]; if(file.type!=='application/pdf'){ alert('Please select a PDF file.'); return; }
     try{
       const pdfjsLib: any = await import('pdfjs-dist');
       const buf = await file.arrayBuffer();
-      // Use workerless rendering to avoid worker wiring hassles in first pass
       const pdf = await pdfjsLib.getDocument({ data: buf, disableWorker: true } as any).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(this.editorDoc.pageWidth/viewport.width, this.editorDoc.pageHeight/viewport.height);
-      const v2 = page.getViewport({ scale });
-      const canvas = document.createElement('canvas'); canvas.width = Math.ceil(v2.width); canvas.height = Math.ceil(v2.height);
-      const ctx = canvas.getContext('2d'); if(!ctx) throw new Error('no ctx');
-      await page.render({ canvasContext: ctx, viewport: v2 }).promise;
-      const dataUrl = canvas.toDataURL('image/png');
-      this.editorDoc.items.unshift({ id: this.uuid(), type: 'image', x: 0, y: 0, w: v2.width, h: v2.height, dataUrl, ar: v2.width/v2.height });
-      try { (page as any).cleanup && (page as any).cleanup(); (page as any).destroy && (page as any).destroy(); (pdf as any).cleanup && (pdf as any).cleanup(); (pdf as any).destroy && (pdf as any).destroy(); } catch {}
-      try { canvas.width = 0; canvas.height = 0; } catch {}
-      this.queueEditorSave();
+      const maxPages = Math.min(30, pdf.numPages||1);
+      this.uploadPages = [];
+      for(let i=1;i<=maxPages;i++){
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(this.editorDoc.pageWidth/viewport.width, this.editorDoc.pageHeight/viewport.height);
+        const v2 = page.getViewport({ scale });
+        const canvas = document.createElement('canvas'); canvas.width = Math.ceil(v2.width); canvas.height = Math.ceil(v2.height);
+        const ctx = canvas.getContext('2d'); if(!ctx) throw new Error('no ctx');
+        await page.render({ canvasContext: ctx, viewport: v2 }).promise;
+        const dataUrl = canvas.toDataURL('image/png');
+        this.uploadPages.push({ index: i, dataUrl, width: v2.width, height: v2.height, selected: i<=5 });
+        try { (page as any).cleanup && (page as any).cleanup(); } catch {}
+        try { canvas.width = 0; canvas.height = 0; } catch {}
+      }
+      try { (pdf as any).cleanup && (pdf as any).cleanup(); (pdf as any).destroy && (pdf as any).destroy(); } catch {}
     } catch(e){ alert('Failed to render PDF: ' + (e as any)?.message); }
-    this.uploadModal=false;
+  }
+  toggleUploadSelectAll(sel: boolean){ this.uploadPages = this.uploadPages.map(p => ({ ...p, selected: sel })); }
+  insertUpload(mode: 'pages'|'images'){
+    const chosen = this.uploadPages.filter(p=>p.selected);
+    if(chosen.length===0){ alert('Select at least one page'); return; }
+    if(mode==='pages'){
+      for(const p of chosen){
+        const items = [{ id: this.uuid(), type: 'image', x: 0, y: 0, w: p.width, h: p.height, dataUrl: p.dataUrl, ar: p.width/p.height } as any];
+        if(!this.editorDoc.pages) this.editorDoc.pages=[];
+        this.editorDoc.pages.push({ id: this.uuid(), items });
+      }
+      this.selectPage((this.editorDoc.pages?.length||1)-1);
+    } else {
+      // insert into current page as stacked images
+      for(const p of chosen){ this.editorDoc.items.push({ id: this.uuid(), type: 'image', x: 0, y: 0, w: p.width, h: p.height, dataUrl: p.dataUrl, ar: p.width/p.height } as any); }
+    }
+    this.queueEditorSave(); this.uploadModal=false; this.uploadPages=[];
   }
 
   // Signature drawing

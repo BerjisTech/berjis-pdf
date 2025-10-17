@@ -46,7 +46,30 @@
 
 </div>
 
-<div #editorMainPane class="p-4 grid grid-cols-4 gap-4">
+<div #editorMainPane class="p-4 grid grid-cols-5 gap-4">
+  <!-- Pages sidebar -->
+  <div class="col-span-1 space-y-2">
+    <div class="flex items-center justify-between">
+      <div class="text-sm font-medium">Pages</div>
+      <div class="flex items-center gap-1">
+        <button class="px-2 py-1 border rounded" (click)="addPage()">+ Page</button>
+      </div>
+    </div>
+    <div class="space-y-2 max-h-[70vh] overflow-auto pr-1">
+      <div *ngFor="let pg of editorDoc.pages; let i = index" class="border rounded bg-white cursor-pointer group" (click)="selectPage(i)" [class.ring-2]="i===currentPage" [class.ring-blue-500]="i===currentPage">
+        <div class="text-[10px] text-gray-500 px-1 py-0.5">Page {{ i+1 }}</div>
+        <canvas width="120" height="160" class="w-full block" (mouseenter)="renderPageThumb(i, $event.target)"></canvas>
+        <div class="flex items-center justify-between p-1 opacity-0 group-hover:opacity-100 transition">
+          <div class="text-[10px] text-gray-500">{{ (editorDoc.pages?.[i]?.items?.length||0) }} items</div>
+          <div class="flex items-center gap-1">
+            <button class="px-1 py-0.5 border rounded text-[10px]" (click)="$event.stopPropagation(); movePage(i,-1)">↑</button>
+            <button class="px-1 py-0.5 border rounded text-[10px]" (click)="$event.stopPropagation(); movePage(i,1)">↓</button>
+            <button class="px-1 py-0.5 border rounded text-[10px] text-red-600" (click)="$event.stopPropagation(); deletePage(i)">Del</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="col-span-3 space-y-3">
     <div class="flex items-end gap-3 flex-wrap">
       <div>
@@ -115,6 +138,20 @@
               <button class="block w-full text-left px-2 py-1 hover:bg-slate-100 rounded" (click)="autoTabOrder()">Change tab order</button>
             </div>
           </span>
+          <div class="h-6 w-px bg-slate-300 mx-1"></div>
+          <label class="flex items-center gap-1">
+            <input type="checkbox" [ngModel]="gridEnabled" (ngModelChange)="gridEnabled=$event" /> Grid
+          </label>
+          <label class="flex items-center gap-1">
+            <span class="text-gray-500">Size</span>
+            <input type="number" class="w-16 border rounded px-1 py-0.5" [ngModel]="gridSize" (ngModelChange)="gridSize=+$event||10" />
+          </label>
+        </div>
+
+        <!-- Grid overlay -->
+        <div class="absolute inset-0 pointer-events-none" *ngIf="gridEnabled"
+             [style.backgroundImage]="'linear-gradient(to right, rgba(0,0,0,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.08) 1px, transparent 1px)'"
+             [style.backgroundSize]="(gridSize * displayScale) + 'px ' + (gridSize * displayScale) + 'px'">
         </div>
         <div *ngFor="let it of editorDoc.items"
              class="absolute border-dashed"
