@@ -42,7 +42,7 @@ export class PdfPageComponent implements OnInit {
   isResizing = false;
   resizeHandle: 'n'|'s'|'e'|'w'|'ne'|'nw'|'se'|'sw'|null = null;
   isRotating = false;
-  displayScale = 96 / 72; // pt -> px for screen preview
+  displayScale = 1; // preview scale: px per pt (smaller preview)
   private editorSaveTimer?: any;
   private readonly editorStorageKey = 'berjis-pdf-editor-docs';
   private fileInput?: HTMLInputElement;
@@ -56,6 +56,7 @@ export class PdfPageComponent implements OnInit {
   // grid & snap
   gridEnabled = true;
   gridSize = 10; // points
+  gridVisible = false;
   contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
     { name: 'File', menus: [
       { icon: '', name: 'New', action: 'new' },
@@ -347,7 +348,7 @@ export class PdfPageComponent implements OnInit {
     try {
       const { PDFDocument, rgb, StandardFonts, degrees, PDFName, PDFArray, PDFNumber, PDFString } = await import('pdf-lib') as any;
       const pdfDoc = await PDFDocument.create();
-      const page = pdfDoc.addPage([this.editorDoc.pageWidth, this.editorDoc.pageHeight]);
+      const pages = (this.editorDoc.pages && this.editorDoc.pages.length>0) ? this.editorDoc.pages : [{ id: this.uuid(), items: this.editorDoc.items } as any];
       const fonts: Record<string, any> = {};
       const getFont = async (fam?: string) => {
         const key = (fam||'helvetica').toLowerCase();
@@ -358,7 +359,10 @@ export class PdfPageComponent implements OnInit {
         return fonts[key];
       };
       const col = (hex?: string) => { if(!hex) return undefined; const c=this.hexToRgb(hex); return c? rgb(c.r/255, c.g/255, c.b/255): undefined; };
-      for(const it of this.editorDoc.items){
+      for(const pg of pages){
+        const page = pdfDoc.addPage([this.editorDoc.pageWidth, this.editorDoc.pageHeight]);
+        const items = pg.items || [];
+        for(const it of items){
         if(it.type==='text'){
           const font = await getFont(it.fontFamily);
           const size = it.fontSize || 14;
@@ -396,6 +400,7 @@ export class PdfPageComponent implements OnInit {
           page.drawRectangle({ x: it.x, y: this.editorDoc.pageHeight - it.y - it.h, width: it.w, height: it.h, borderColor: rgb(0.47,0.47,0.47), borderWidth: 1 });
           const font = await getFont('helvetica'); const name = (it as any).name || '';
           if(name){ page.drawText(name, { x: it.x+3, y: this.editorDoc.pageHeight - it.y - it.h - 10, size: 9, font, color: rgb(0,0,0) }); }
+        }
         }
       }
       const name = ((this.pdf?.title)||'document').replace(/\s+/g,'-').slice(0,80);
@@ -501,6 +506,8 @@ export class PdfPageComponent implements OnInit {
   itemFontSize(it: any): number { return (it && it.fontSize) ? Number(it.fontSize) : 14; }
   itemColor(it: any, fallback: string = '#2563eb'): string { return (it && it.color) ? it.color : fallback; }
   itemText(it: any): string { return (it && typeof it.text==='string') ? it.text : ''; }
+  widthPx(it: any): number { return Math.round((it?.w||0) * this.displayScale); }
+  heightPx(it: any): number { if(!it) return 0; if((it.type==='image'||it.type==='sign') && (it.ar|| (it.w && it.h))) { const ar = it.ar || (it.w/it.h)||1; const h = it.w / ar; return Math.round(h * this.displayScale); } return Math.round((it.h||0) * this.displayScale); }
   isLineShape(it: any): boolean { return !!it && it.shape==='line'; }
   fieldName(it: any): string { return (it && it.name) ? it.name : 'field'; }
   fieldTabIndex(it: any): number { return (it && typeof it.tabIndex==='number') ? it.tabIndex : 0; }

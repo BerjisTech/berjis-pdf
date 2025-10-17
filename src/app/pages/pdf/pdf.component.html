@@ -140,7 +140,10 @@
           </span>
           <div class="h-6 w-px bg-slate-300 mx-1"></div>
           <label class="flex items-center gap-1">
-            <input type="checkbox" [ngModel]="gridEnabled" (ngModelChange)="gridEnabled=$event" /> Grid
+            <input type="checkbox" [ngModel]="gridEnabled" (ngModelChange)="gridEnabled=$event" /> Snap
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="checkbox" [ngModel]="gridVisible" (ngModelChange)="gridVisible=$event" /> Show grid
           </label>
           <label class="flex items-center gap-1">
             <span class="text-gray-500">Size</span>
@@ -149,7 +152,7 @@
         </div>
 
         <!-- Grid overlay -->
-        <div class="absolute inset-0 pointer-events-none" *ngIf="gridEnabled"
+        <div class="absolute inset-0 pointer-events-none" *ngIf="gridVisible"
              [style.backgroundImage]="'linear-gradient(to right, rgba(0,0,0,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.08) 1px, transparent 1px)'"
              [style.backgroundSize]="(gridSize * displayScale) + 'px ' + (gridSize * displayScale) + 'px'">
         </div>
@@ -160,8 +163,8 @@
              [class.border-transparent]="it.id!==selectedId"
              [style.left.px]="it.x * displayScale"
              [style.top.px]="it.y * displayScale"
-             [style.width.px]="it.w * displayScale"
-             [style.height.px]="it.h * displayScale"
+             [style.width.px]="widthPx(it)"
+             [style.height.px]="heightPx(it)"
              [style.transform]="transformStyle(it)"
              [style.transformOrigin]="'top left'"
              (mousedown)="$event.stopPropagation(); onCanvasMouseDown($event)">
