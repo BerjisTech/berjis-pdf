@@ -84,7 +84,7 @@
            (mousemove)="onCanvasMouseMove($event)"
            (mouseup)="onCanvasMouseUp()">
         <!-- On-canvas toolbar -->
-        <div class="absolute left-2 top-2 bg-white/90 backdrop-blur rounded shadow px-2 py-1 flex items-center gap-1 text-xs">
+        <div class="absolute left-2 top-2 bg-white/90 backdrop-blur rounded shadow px-2 py-1 flex items-center gap-1 text-xs editor-ui z-50">
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addTextBox()">Text</button>
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addLink()">Link</button>
           <button class="px-2 py-1 hover:bg-slate-100 rounded" (click)="addImage()">Image</button>
@@ -174,7 +174,7 @@
 
         <!-- Contextual toolbar for selected item -->
         <ng-container *ngIf="getSelected() as sel">
-          <div class="absolute bg-white/95 backdrop-blur rounded shadow px-2 py-1 text-xs flex items-center gap-2"
+          <div class="absolute bg-white/95 backdrop-blur rounded shadow px-2 py-1 text-xs flex items-center gap-2 editor-ui z-50"
                [style.left.px]="(sel.x * displayScale)"
                [style.top.px]="Math.max(0, (sel.y * displayScale) - 32)">
             <ng-container [ngSwitch]="sel.type">

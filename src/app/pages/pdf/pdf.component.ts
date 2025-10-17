@@ -224,6 +224,8 @@ export class PdfPageComponent implements OnInit {
   onCanvasMouseDown(ev: MouseEvent){
     const src = ev.currentTarget as HTMLElement;
     const target = ev.target as HTMLElement;
+    // ignore clicks on editor UI overlays (toolbars, menus)
+    if (target && (target.closest && target.closest('.editor-ui'))) return;
     // rotate handle
     const rotateAttr = (src.getAttribute('data-rotate') || target.getAttribute('data-rotate'));
     if(rotateAttr==='1' && this.selectedId){ this.isRotating=true; ev.preventDefault(); return; }
