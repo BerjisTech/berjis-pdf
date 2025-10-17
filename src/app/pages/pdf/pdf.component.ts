@@ -508,6 +508,8 @@ export class PdfPageComponent implements OnInit {
   itemText(it: any): string { return (it && typeof it.text==='string') ? it.text : ''; }
   widthPx(it: any): number { return Math.round((it?.w||0) * this.displayScale); }
   heightPx(it: any): number { if(!it) return 0; if((it.type==='image'||it.type==='sign') && (it.ar|| (it.w && it.h))) { const ar = it.ar || (it.w/it.h)||1; const h = it.w / ar; return Math.round(h * this.displayScale); } return Math.round((it.h||0) * this.displayScale); }
+  isImg(it: any): boolean { return !!it && (it.type==='image' || it.type==='sign'); }
+  aspectRatioVal(it: any): string { const ar = (it?.ar) ?? ((it?.w && it?.h) ? (it.w/it.h) : 1); return String(ar || 1); }
   isLineShape(it: any): boolean { return !!it && it.shape==='line'; }
   fieldName(it: any): string { return (it && it.name) ? it.name : 'field'; }
   fieldTabIndex(it: any): number { return (it && typeof it.tabIndex==='number') ? it.tabIndex : 0; }
