@@ -108,6 +108,48 @@ export class PdfPageComponent implements OnInit {
     ]}
   ];
 
+  // History (undo/redo)
+  private history: { doc: any; selectedId: string | null; currentPage: number }[] = [];
+  private historyIndex = -1;
+  private pushHistory(){
+    try {
+      const snap = {
+        doc: JSON.parse(JSON.stringify(this.editorDoc)),
+        selectedId: this.selectedId,
+        currentPage: this.currentPage,
+      };
+      // truncate future if after undo
+      if (this.historyIndex < this.history.length - 1) {
+        this.history = this.history.slice(0, this.historyIndex + 1);
+      }
+      this.history.push(snap);
+      if (this.history.length > 50) { this.history.shift(); }
+      this.historyIndex = this.history.length - 1;
+    } catch {}
+  }
+  undo(){
+    if (this.historyIndex <= 0) return;
+    this.historyIndex--;
+    const h = this.history[this.historyIndex];
+    this.editorDoc = JSON.parse(JSON.stringify(h.doc));
+    this.selectedId = h.selectedId;
+    this.currentPage = h.currentPage;
+    this.inferPageSizeFromDims();
+    this.ensurePages();
+    this.saveEditorDoc();
+  }
+  redo(){
+    if (this.historyIndex >= this.history.length - 1) return;
+    this.historyIndex++;
+    const h = this.history[this.historyIndex];
+    this.editorDoc = JSON.parse(JSON.stringify(h.doc));
+    this.selectedId = h.selectedId;
+    this.currentPage = h.currentPage;
+    this.inferPageSizeFromDims();
+    this.ensurePages();
+    this.saveEditorDoc();
+  }
+
   onMenu(action: string){
     switch(action){
       case 'new': this.router.navigate(['/pdf','new']); break;
@@ -134,10 +176,11 @@ export class PdfPageComponent implements OnInit {
       case 'insertFormCheckbox': this.addFormField('formCheckbox'); break;
       case 'insertFormSignature': this.addFormField('formSignature'); break;
       case 'print': window.print(); break;
-      case 'undo': document.execCommand('undo'); break;
-      case 'redo': document.execCommand('redo'); break;
-      case 'zoomIn': this.zoom = Math.min(3, this.zoom + 0.1); break;
-      case 'zoomOut': this.zoom = Math.max(0.5, this.zoom - 0.1); break;
+      case 'undo': this.undo(); break;
+      case 'redo': this.redo(); break;
+      case 'zoomIn': this.zoom = Math.min(4, Math.round((this.zoom + 0.1) * 10) / 10); break;
+      case 'zoomOut': this.zoom = Math.max(0.25, Math.round((this.zoom - 0.1) * 10) / 10); break;
+      case 'pageView': this.zoom = 1; break;
       default: break;
     }
   }
@@ -171,6 +214,8 @@ export class PdfPageComponent implements OnInit {
     this.annotations = Array.isArray(this.pdf?.annotations) ? this.pdf!.annotations as any : [];
     this.loadEditorDoc();
     this.ensurePages();
+    // seed history after initial load
+    this.pushHistory();
     setTimeout(() => this.ensureFileInput(), 0);
   }
 
@@ -335,7 +380,11 @@ export class PdfPageComponent implements OnInit {
   }
   private saveEditorDoc(){ try { const id=this.pdf?.id||'new'; const raw = localStorage.getItem(this.editorStorageKey); const map = raw ? JSON.parse(raw) : {}; map[id] = this.editorDoc; localStorage.setItem(this.editorStorageKey, JSON.stringify(map)); } catch {}
   }
-  queueEditorSave(){ if(this.editorSaveTimer) clearTimeout(this.editorSaveTimer); this.editorSaveTimer = setTimeout(()=> this.saveEditorDoc(), 300); }
+  queueEditorSave(){
+    if (!this.editorSaveTimer) this.pushHistory();
+    if (this.editorSaveTimer) clearTimeout(this.editorSaveTimer);
+    this.editorSaveTimer = setTimeout(()=> this.saveEditorDoc(), 300);
+  }
   private inferPageSizeFromDims(){ const w=this.editorDoc.pageWidth, h=this.editorDoc.pageHeight; const approx = (a:number,b:number)=> Math.abs(a-b) < 2; if(approx(w,595.28)&&approx(h,841.89)) this.pageSize='A4'; else if(approx(w,612)&&approx(h,792)) this.pageSize='Letter'; else if(approx(w,612)&&approx(h,1008)) this.pageSize='Legal'; else { this.pageSize='Custom'; this.customPageWidth=w; this.customPageHeight=h; } }
 
   // Pages management
@@ -570,6 +619,13 @@ export class PdfPageComponent implements OnInit {
     if (isTyping) return;
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && this.selectedId && !this.signModal && !this.openModal && !this.renameModal && !this.uploadModal){ this.deleteSelected(); ev.preventDefault(); }
     if (ev.key === 'Escape'){ this.selectedId = null; }
+    // Undo/redo
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); if (ev.shiftKey) this.redo(); else this.undo(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') { ev.preventDefault(); this.redo(); return; }
+    // Clipboard: copy/cut/paste selected items
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'c') { this.copySelected(); ev.preventDefault(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'x') { this.cutSelected(); ev.preventDefault(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'v') { this.pasteClipboard(); ev.preventDefault(); return; }
     if (this.selectedId && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(ev.key)){
       const it = this.getSelected(); if(!it) return;
       const step = ev.shiftKey ? 10 : 1;
@@ -580,6 +636,13 @@ export class PdfPageComponent implements OnInit {
       this.queueEditorSave(); ev.preventDefault();
     }
   }
+
+  // Clipboard helpers
+  private clipboard: any | null = null;
+  private deepClone<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
+  copySelected(){ const it = this.getSelected(); if(!it) return; this.clipboard = this.deepClone(it); }
+  cutSelected(){ const it = this.getSelected(); if(!it) return; this.clipboard = this.deepClone(it); this.deleteSelected(); }
+  pasteClipboard(){ if(!this.clipboard) return; const it = this.deepClone(this.clipboard); it.id = this.uuid(); it.x = Math.min(this.editorDoc.pageWidth - it.w, (it.x||0) + 10); it.y = Math.min(this.editorDoc.pageHeight - it.h, (it.y||0) + 10); this.editorDoc.items.push(it); this.selectedId = it.id; this.queueEditorSave(); }
 
   // Snap helper
   private snap(v: number){ const g = Math.max(1, Number(this.gridSize)||10); return Math.round(v / g) * g; }
