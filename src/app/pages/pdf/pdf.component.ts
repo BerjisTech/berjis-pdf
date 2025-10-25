@@ -1,13 +1,13 @@
 import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PdfsService, PdfDoc } from '../../pdfs.service';
 
 @Component({
   standalone: true,
   selector: 'app-pdf',
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './pdf.component.html'
 })
 export class PdfPageComponent implements OnInit {
@@ -181,6 +181,12 @@ export class PdfPageComponent implements OnInit {
       case 'zoomIn': this.zoom = Math.min(4, Math.round((this.zoom + 0.1) * 10) / 10); break;
       case 'zoomOut': this.zoom = Math.max(0.25, Math.round((this.zoom - 0.1) * 10) / 10); break;
       case 'pageView': this.zoom = 1; break;
+      case 'rotate': this.rotateSelected(90); break;
+      case 'find': { const q = prompt('Find text'); if (q) this.findInItems(q); break; }
+      case 'highlight': { const id=this.uuid(); this.editorDoc.items.push({ id, type: 'shape', x: 40, y: 40, w: 200, h: 24, rot: 0, stroke:'#f59e0b', fill:'#fde68a', strokeWidth: 0.5, shape: 'rect' }); this.selectedId=id; this.queueEditorSave(); break; }
+      case 'comment': this.addAnnotationItem(); break;
+      case 'draw': this.addShape('line'); break;
+      case 'help': this.openHelp('pdf'); break;
       default: break;
     }
   }
@@ -277,6 +283,7 @@ export class PdfPageComponent implements OnInit {
   addSignature(){ this.addImage(); }
   addWhiteout(){ const id=this.uuid(); this.editorDoc.items.push({ id, type: 'whiteout', x: 80, y: 120, w: 160, h: 50 }); this.selectedId=id; this.queueEditorSave(); }
   addAnnotationItem(){ const id=this.uuid(); this.editorDoc.items.push({ id, type: 'annotation', x: 50, y: 50, w: 140, h: 80, text: 'Note' }); this.selectedId=id; this.queueEditorSave(); }
+  private findInItems(q: string){ const qq=q.toLowerCase(); const pages = (this.editorDoc.pages&&this.editorDoc.pages.length? this.editorDoc.pages: [{ items: this.editorDoc.items } as any]); for (let pi=0; pi<pages.length; pi++){ const items = pages[pi].items||[]; const it = items.find((i:any)=> (i.text||'').toLowerCase().includes(qq)); if (it){ this.currentPage = Math.max(0, Math.min(pi, (this.editorDoc.pages?.length||1)-1)); if (this.editorDoc.pages && this.editorDoc.pages.length){ this.editorDoc.items = this.editorDoc.pages[this.currentPage].items; } this.selectedId = it.id; this.queueEditorSave(); break; } } }
   addShape(shape: 'rect'|'ellipse'|'line'){ const id=this.uuid(); const base={ id, type: 'shape' as const, x: 100, y: 120, w: 120, h: 80, rot: 0, stroke:'#111827', fill: shape==='line' ? 'transparent' : '#e5e7eb', strokeWidth: 1 }; this.editorDoc.items.push({ ...base, shape }); this.selectedId=id; this.queueEditorSave(); }
   addFormField(kind: 'formText'|'formTextarea'|'formSelect'|'formRadio'|'formCheckbox'|'formSignature'){
     const id=this.uuid(); const base={ id, x: 120, y: 140, w: 200, h: kind==='formTextarea'?80:28, name: `${kind}_${id.slice(-4)}`, tabIndex: 0 } as any;
@@ -469,6 +476,7 @@ export class PdfPageComponent implements OnInit {
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name}.pdf`; a.click(); URL.revokeObjectURL(a.href);
     } catch (e) { alert('Export requires pdf-lib. Please install it: yarn add pdf-lib'); }
   }
+  private openHelp(app: 'docs'|'sheets'|'slides'|'pdf'){ const sp = localStorage.getItem(`berjis_help_url_${app}`); const g = localStorage.getItem('berjis_help_url'); const u = sp||g||`/help/${app}`; window.open(u, '_blank'); }
   async exportPdfWithForms(){
     try {
       const { PDFDocument, rgb, StandardFonts, degrees } = await import('pdf-lib') as any;

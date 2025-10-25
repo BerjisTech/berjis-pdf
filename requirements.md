@@ -286,7 +286,7 @@ Status and Next Steps (Frontend Editor)
     - Stream uploads/downloads; DB pooling; cache hot documents; consider per-page raster thumbnails server-side for faster recents previews.
 
 Notes
-- No changes to auth or URL structure; frontend continues to call `http://api.berjis.test` (auth) and `http://pdf-api.berjis.test` (PDF service).
+- No changes to auth or URL structure; frontend continues to call `http://api.berjis.tech` (auth) and `http://pdf-api.berjis.tech` (PDF service).
 - Client-side import/export remains for MVP; server endpoints can be introduced without breaking current flows.
  Form field creation (text inputs, checkboxes, signatures)
  Digital signature support
