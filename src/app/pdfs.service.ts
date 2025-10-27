@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 export type PdfStatus = 'active'|'archived'|'deleted';
 export interface PdfDoc { id: string; title?: string; annotations?: any; status: PdfStatus; createdAt: string; updatedAt: string }
 
-const API_BASE = 'http://pdf-api.berjis.tech';
+const API_BASE = 'https://pdf-api.berjis.tech';
 const STORAGE_KEY = 'berjis-pdfs';
 
 @Injectable({ providedIn: 'root' })
