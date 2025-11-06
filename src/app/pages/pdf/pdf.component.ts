@@ -57,6 +57,11 @@ export class PdfPageComponent implements OnInit {
   gridEnabled = true;
   gridSize = 10; // points
   gridVisible = false;
+  // Share modal
+  shareOpen = false;
+  shareRows: { userId: string; role: 'viewer'|'commenter'|'editor' }[] = [];
+  shareUserId = '';
+  shareRole: 'viewer'|'commenter'|'editor' = 'viewer';
   contextMenus: { name: string, menus: { icon: string, name: string, action: string }[] }[] = [
     { name: 'File', menus: [
       { icon: '', name: 'New', action: 'new' },
@@ -718,6 +723,18 @@ export class PdfPageComponent implements OnInit {
     }
     this.queueEditorSave(); this.uploadModal=false; this.uploadPages=[];
   }
+
+  // Share helpers
+  openShare(){ this.shareOpen = true; this.loadCollaborators(); }
+  async loadCollaborators(){
+    if(!this.pdf) return; try {
+      const res = await fetch(`/v1/pdfs/${encodeURIComponent(this.pdf.id)}/collaborators`, { credentials: 'include' });
+      const j = await res.json(); const rows = (j?.data||[]) as any[];
+      this.shareRows = rows.map(r => ({ userId: r.userId || r.user_id, role: (r.permission==='edit'?'editor':r.permission==='comment'?'commenter':'viewer') }));
+    } catch { this.shareRows = []; }
+  }
+  async addCollaborator(){ if(!this.pdf) return; const userId=this.shareUserId.trim(); if(!userId) return; const role=this.shareRole; await fetch(`/v1/pdfs/${encodeURIComponent(this.pdf.id)}/collaborators`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, role }) }); this.shareUserId=''; await this.loadCollaborators(); }
+  async removeCollaborator(uid: string){ if(!this.pdf) return; await fetch(`/v1/pdfs/${encodeURIComponent(this.pdf.id)}/collaborators?user_id=${encodeURIComponent(uid)}`, { method: 'DELETE', credentials: 'include' }); await this.loadCollaborators(); }
 
   // Signature drawing
   openSign(){ this.signModal=true; setTimeout(()=> this.initSigCanvas(), 0); }
