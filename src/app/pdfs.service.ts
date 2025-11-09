@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { environment } from '../environments/environment';
 
 export type PdfStatus = 'active'|'archived'|'deleted';
 export interface PdfDoc { id: string; title?: string; annotations?: any; status: PdfStatus; createdAt: string; updatedAt: string }
 
-const API_BASE = 'https://pdf-api.berjis.tech';
+const API_BASE = normalizeBase(environment.pdfApiBase || 'https://pdf-api.berjis.tech');
 const STORAGE_KEY = 'berjis-pdfs';
 
 @Injectable({ providedIn: 'root' })
@@ -79,5 +80,10 @@ export class PdfsService {
   private endSave(err?: any){ this.isSaving=false; if (err) this.lastError = err?.message||'sync error'; else this.lastSavedAt=this.now(); }
   private switchToLocal(e?: any){ this.preferRemote=false; this.syncMode='local'; this.lastError = e?.message || 'offline, saving locally'; }
   private uuid(): string { return 'f_' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+}
+
+function normalizeBase(base: string): string {
+  if (!base) return '';
+  return base.replace(/\/+$/, '');
 }
 
