@@ -1,4 +1,9 @@
-const w = typeof window !== 'undefined' ? (window as any) : {};
+type PdfWindow = Window & {
+  __BERJIS_API__?: string;
+  __PDF_API__?: string;
+};
+
+const w: PdfWindow | undefined = typeof window !== 'undefined' ? (window as PdfWindow) : undefined;
 
 export const environment = {
   production: true,
